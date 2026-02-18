@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MeshCore Panel Setup",
+        "description": "Configure your MeshCore Panel integration.",
+        "data": {
+          "my_repeater_pubkey": "Your Repeater Pubkey (first 12 chars)",
+          "my_name": "Your Name (for greetings)",
+          "greet_enabled": "Enable auto-greeting new contacts",
+          "cleanup_enabled": "Enable auto-cleanup old contacts"
+        }
+      }
+    },
+    "error": {
+      "pubkey_required": "Repeater pubkey is required"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MeshCore Panel Options",
+        "data": {
+          "my_repeater_pubkey": "Your Repeater Pubkey",
+          "my_name": "Your Name (for greetings)",
+          "greet_enabled": "Enable auto-greeting new contacts",
+          "cleanup_enabled": "Enable auto-cleanup old contacts"
+        }
+      }
+    }
+  }
+}
