@@ -125,10 +125,7 @@
       color: #a855f7;
       font-weight: bold;
     }
-    /* Dark map tiles */
-    .leaflet-tile-pane {
-      filter: invert(1) hue-rotate(180deg) brightness(0.8) contrast(1.2);
-    }
+    /* CartoDB dark_all tiles — no invert filter needed */
     .leaflet-control-attribution {
       background: rgba(30, 30, 50, 0.8) !important;
       color: #666 !important;
@@ -174,13 +171,11 @@
   </div>
 
   <div class="info-panel">
-    <h3>🔗 Top Connected Nodes</h3>
-    <input type="text" id="node-search" placeholder="Search nodes..." oninput="filterNodes()" style="width: 100%; padding: 6px; margin-bottom: 10px; background: #2a2a4a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 12px;">
+    <h3 id="toggle-links">🔗 Top Connected Nodes <span id="links-status">(lines hidden)</span></h3>
     <div id="node-list"></div>
   </div>
 
   <script>
-
     // ── XSS fix (CVE-2026-45323 class) ───────────────────────────────────────
     // adv_name and other mesh-sourced fields are not sanitised by the MeshCore
     // firmware, meshcore_py SDK, or the HA integration. Escape every value
@@ -198,13 +193,17 @@
 
     // Initialize map
     const map = L.map('map', {
-      center: [52.3, 0],
-      zoom: 9,
+      center: [52.32, -0.19],
+      zoom: 10,
       zoomControl: true
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CartoDB',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      updateWhenIdle: true,
+      keepBuffer: 1
     }).addTo(map);
 
     let nodeData = [];
@@ -214,6 +213,7 @@
     let linkLines = [];
     let lastDataHash = '';
     let selectedNode = null;
+    let linksVisible = false;
 
     function getDataHash(nodes, links, threshold) {
       const nodeHash = JSON.stringify(nodes.map(d => d.name + d.link_count)).substring(0, 100);
@@ -229,18 +229,19 @@
       return '#ff0000';
     }
 
-    function filterNodes() {
-      const searchTerm = document.getElementById('node-search').value.toLowerCase();
-      const items = document.querySelectorAll('.node-item');
-      items.forEach(item => {
-        const name = item.dataset.nodeName.toLowerCase();
-        if (name.includes(searchTerm)) {
-          item.style.display = 'flex';
+    function toggleLinks() {
+      linksVisible = !linksVisible;
+      linkLines.forEach(line => {
+        if (linksVisible) {
+          line.setStyle({ opacity: 0.5 });
         } else {
-          item.style.display = 'none';
+          line.setStyle({ opacity: 0 });
         }
       });
+      document.getElementById('links-status').textContent = linksVisible ? '(lines visible)' : '(lines hidden)';
     }
+
+    document.getElementById('toggle-links').addEventListener('click', toggleLinks);
 
     function highlightNodeLinks(nodeName) {
       if (selectedNode === nodeName) {
@@ -259,15 +260,12 @@
       
       linkLines.forEach(line => {
         if (selectedNode === null) {
-          // Hide all lines when no node selected
-          line.setStyle({ opacity: 0 });
+          line.setStyle({ opacity: linksVisible ? 0.5 : 0 });
         } else if (line.fromName === selectedNode || line.toName === selectedNode) {
-          // Show lines for selected node
-          line.setStyle({ opacity: 0.8, weight: 2 });
+          line.setStyle({ opacity: 0.9, weight: 3 });
           line.bringToFront();
         } else {
-          // Hide other lines
-          line.setStyle({ opacity: 0 });
+          line.setStyle({ opacity: 0.1 });
         }
       });
     }
@@ -388,7 +386,13 @@
 
       if (fitBounds && nodeData.length > 1) {
         const bounds = L.latLngBounds(nodeData.map(d => [d.lat, d.lon]));
-        map.fitBounds(bounds, { padding: [50, 50] });
+        const boundsSize = bounds.getNorthEast().distanceTo(bounds.getSouthWest());
+        if (boundsSize > 500000) {
+          // Mesh spans >500km — use fixed home view to avoid tile burst
+          map.setView([52.32, -0.19], 10);
+        } else {
+          map.fitBounds(bounds, { padding: [50, 50] });
+        }
       }
     }
 
